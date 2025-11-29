@@ -52,12 +52,14 @@ namespace TrayFolder.Models
             // Check if it's a shortcut to a folder
             if (System.IO.Path.GetExtension(path).ToLower() == ".lnk")
             {
+                // Always hide extension for shortcuts
+                Name = System.IO.Path.GetFileNameWithoutExtension(path);
+
                 string target = ShortcutHelper.ResolveShortcut(path);
                 if (!string.IsNullOrEmpty(target) && Directory.Exists(target))
                 {
                     TargetFolderPath = target;
                     IsFolder = true;
-                    Name = System.IO.Path.GetFileNameWithoutExtension(path);
                 }
                 else
                 {
