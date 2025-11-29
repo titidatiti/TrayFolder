@@ -9,6 +9,7 @@ using System.Drawing;
 using System.Diagnostics;
 using System.Windows.Input;
 using TrayFolder.Helpers;
+using TrayFolder.Services;
 
 namespace TrayFolder.Models
 {
@@ -20,6 +21,8 @@ namespace TrayFolder.Models
         public ImageSource SysIcon { get; set; }
         public ObservableCollection<FileSystemItem> Children { get; set; }
         public ICommand OpenCommand { get; set; }
+
+        public string TargetFolderPath { get; set; }
 
         private bool _isExpanded;
         public bool IsExpanded
@@ -45,7 +48,26 @@ namespace TrayFolder.Models
             Path = path;
             Name = System.IO.Path.GetFileName(path);
             if (string.IsNullOrEmpty(Name)) Name = path; // Handle root drives
-            IsFolder = Directory.Exists(path);
+            
+            // Check if it's a shortcut to a folder
+            if (System.IO.Path.GetExtension(path).ToLower() == ".lnk")
+            {
+                string target = ShortcutHelper.ResolveShortcut(path);
+                if (!string.IsNullOrEmpty(target) && Directory.Exists(target))
+                {
+                    TargetFolderPath = target;
+                    IsFolder = true;
+                    Name = System.IO.Path.GetFileNameWithoutExtension(path);
+                }
+                else
+                {
+                    IsFolder = false;
+                }
+            }
+            else
+            {
+                IsFolder = Directory.Exists(path);
+            }
             
             try 
             {
@@ -84,7 +106,8 @@ namespace TrayFolder.Models
             try
             {
                 Children.Clear();
-                var dirInfo = new DirectoryInfo(Path);
+                string path = !string.IsNullOrEmpty(TargetFolderPath) ? TargetFolderPath : Path;
+                var dirInfo = new DirectoryInfo(path);
                 
                 foreach (var directory in dirInfo.GetDirectories())
                 {
