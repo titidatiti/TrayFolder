@@ -13,7 +13,7 @@ namespace TaskbarFolderShortcut.Services
     {
         private static readonly string SettingsFile = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "FolderTrayApp",
+            "TaskbarFolderShortcut",
             "settings.json");
 
         public static AppSettings Load()
