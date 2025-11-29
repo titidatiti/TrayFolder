@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:models="clr-namespace:TaskbarFolderShortcut.Models">
+
+    <HierarchicalDataTemplate x:Key="FileSystemItemTemplate" DataType="{x:Type models:FileSystemItem}" ItemsSource="{Binding Children}">
+        <StackPanel Orientation="Horizontal">
+            <Image Source="{Binding SysIcon}" Width="16" Height="16" Margin="0,0,5,0" />
+            <TextBlock Text="{Binding Name}" Foreground="Black" VerticalAlignment="Center" />
+        </StackPanel>
+    </HierarchicalDataTemplate>
+
+    <Style x:Key="FileSystemMenuItemStyle" TargetType="MenuItem">
+        <!-- Header is set by ItemTemplate, do not set it here manually -->
+        <Setter Property="ItemsSource" Value="{Binding Children}" />
+        <Setter Property="Command" Value="{Binding OpenCommand}" />
+        <!-- Bind IsSubmenuOpen to IsExpanded to trigger lazy loading -->
+        <Setter Property="IsSubmenuOpen" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        
+        <!-- Recursion: Apply the same style to children -->
+        <Setter Property="ItemContainerStyle" Value="{DynamicResource FileSystemMenuItemStyle}" />
+
+        <!-- Hide empty submenus for files -->
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsFolder}" Value="False">
+                <Setter Property="ItemsSource" Value="{x:Null}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>
