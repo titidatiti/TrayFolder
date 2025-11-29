@@ -48,8 +48,9 @@ namespace TaskbarFolderShortcut
                 var contextMenu = new ContextMenuStrip();
                 
                 // Add App Name Header
-                var header = new ToolStripMenuItem("Taskbar Folder Shortcut");
-                header.Enabled = false; 
+                var header = new ToolStripLabel("Taskbar Folder Shortcut");
+                header.Font = new System.Drawing.Font(header.Font, System.Drawing.FontStyle.Bold);
+                header.Margin = new Padding(0, 2, 0, 2);
                 contextMenu.Items.Add(header);
                 contextMenu.Items.Add("-"); // Separator
 

@@ -5,7 +5,7 @@ namespace TaskbarFolderShortcut.Helpers
 {
     public static class FontIconHelper
     {
-        public static Bitmap CreateIcon(string glyph, float size = 10, Color? color = null)
+        public static Bitmap CreateIcon(string glyph, float size = 6, Color? color = null)
         {
             // Standard icon size for context menu is 16x16
             var bmp = new Bitmap(16, 16);
@@ -14,19 +14,15 @@ namespace TaskbarFolderShortcut.Helpers
                 // High quality rendering
                 g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
                 
-                // Use Segoe MDL2 Assets, fallback to Segoe UI Symbol if needed
+                // Use Segoe MDL2 Assets
                 using (var font = new Font("Segoe MDL2 Assets", size))
                 using (var brush = new SolidBrush(color ?? Color.Black))
+                using (var format = new StringFormat())
                 {
-                    // Measure string to center it
-                    var textSize = g.MeasureString(glyph, font);
+                    format.Alignment = StringAlignment.Center;
+                    format.LineAlignment = StringAlignment.Center;
                     
-                    // Calculate centered position
-                    // Note: MeasureString adds some padding, so we might need to adjust slightly
-                    float x = (16 - textSize.Width) / 2;
-                    float y = (16 - textSize.Height) / 2;
-
-                    g.DrawString(glyph, font, brush, x, y);
+                    g.DrawString(glyph, font, brush, new RectangleF(0, 0, 16, 16), format);
                 }
             }
             return bmp;
