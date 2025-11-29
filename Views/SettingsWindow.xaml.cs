@@ -13,6 +13,7 @@ namespace TrayFolder.Views
             InitializeComponent();
             SelectedPath = currentPath;
             PathTextBox.Text = SelectedPath;
+            StartupCheckBox.IsChecked = StartupService.IsStartupEnabled();
         }
 
         private void Browse_Click(object sender, RoutedEventArgs e)
@@ -30,6 +31,7 @@ namespace TrayFolder.Views
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
+            StartupService.SetStartup(StartupCheckBox.IsChecked == true);
             DialogResult = true;
             Close();
         }
