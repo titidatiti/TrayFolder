@@ -1,27 +1,37 @@
 # TrayFolder
 
-<img src="docs/images/icon.png" width="64" height="64" alt="App Icon" />
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-A Windows tray application that simulates the "Add folder to taskbar" functionality. It allows you to access your favorite folders quickly from the system tray with a modern, customizable menu.
+<img src="docs/images/icon.png" width="64" height="64" alt="TrayFolder app icon" />
+
+TrayFolder is a Windows system tray application that brings back the convenient "folder on the taskbar" experience. It lets you quickly access a favorite folder and its contents through a modern hierarchical menu.
 
 ## Features
--   **System Tray Integration**: Access folders via a tray icon.
--   **Folder Navigation**: Browse files and subfolders in a hierarchical menu.
--   **Open Folder**: Double click to open folders.
--   **Right Click Menu**: Right click a file to open the right-click menu just like the file explorer.
 
-## Screenshots
-![App Preview](docs/images/preview.gif)
+- **System tray integration**: Access your configured folder from a tray icon.
+- **Folder navigation**: Browse files and subfolders through hierarchical menus.
+- **Quick open**: Double-click a folder to open it in File Explorer.
+- **Native context menus**: Right-click an item to open its Windows File Explorer context menu.
+- **Single-file distribution**: The Windows x64 release is packaged as one `TrayFolder.exe` file.
+
+## Screenshot
+
+![TrayFolder preview](docs/images/preview.gif)
 
 ## Getting Started
-1.  Download the latest release.
-2.  Run `TrayFolder.exe`.
-3.  Right-click the tray icon to configure your root folder.
 
-## How to Keep Icon Visible
-By default, Windows might hide the tray icon in the overflow menu. To keep it always visible on the taskbar:
-1.  Click the "Show hidden icons" arrow (^) in the system tray.
-2.  Drag the **TrayFolder** icon from the overflow menu to the main taskbar area.
+1. Download the latest Windows x64 release.
+2. Install the [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0) if it is not already available on your computer.
+3. Run `TrayFolder.exe`.
+4. Right-click the tray icon and select the folder you want to access.
+
+## Keep the Tray Icon Visible
+
+Windows may place the TrayFolder icon in the tray overflow menu by default. To keep it visible:
+
+1. Click the **Show hidden icons** arrow (`^`) in the system tray.
+2. Drag the **TrayFolder** icon from the overflow menu to the main tray area.
 
 ## License
+
 [MIT License](LICENSE)
