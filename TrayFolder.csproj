@@ -18,8 +18,44 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <PublishDir>$(MSBuildProjectDirectory)\dist\win-x64\</PublishDir>
+  </PropertyGroup>
+
   <ItemGroup>
     <Resource Include="app.ico" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Helpers\ShellContextMenuHelper.cs" />
+    <Compile Remove="ShellContextMenuHost\**\*.cs" />
+    <ApplicationDefinition Remove="ShellContextMenuHost\**\*.xaml" />
+    <Page Remove="ShellContextMenuHost\**\*.xaml" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <ShellHostProject>$(MSBuildProjectDirectory)\ShellContextMenuHost\TrayFolder.ShellHost.csproj</ShellHostProject>
+    <ShellHostOutput>$(MSBuildProjectDirectory)\ShellContextMenuHost\bin\$(Configuration)\net48</ShellHostOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(ShellHostOutput)\TrayFolder.ShellHost.exe"
+                      LogicalName="TrayFolder.Embedded.TrayFolder.ShellHost.exe" />
+    <EmbeddedResource Include="$(ShellHostOutput)\TrayFolder.ShellHost.exe.config"
+                      LogicalName="TrayFolder.Embedded.TrayFolder.ShellHost.exe.config" />
+  </ItemGroup>
+
+  <Target Name="RestoreShellContextMenuHost" BeforeTargets="Restore">
+    <MSBuild Projects="$(ShellHostProject)" Targets="Restore" />
+  </Target>
+
+  <Target Name="BuildShellContextMenuHost" BeforeTargets="PrepareForBuild">
+    <MSBuild Projects="$(ShellHostProject)" Targets="Build" Properties="Configuration=$(Configuration)" />
+  </Target>
 
 </Project>

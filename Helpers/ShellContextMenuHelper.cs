@@ -46,7 +46,7 @@ namespace TrayFolder.Helpers
             [PreserveSig]
             new int HandleMenuMsg(uint uMsg, IntPtr wParam, IntPtr lParam);
             [PreserveSig]
-            int HandleMenuMsg2(uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr plResult);
+            int HandleMenuMsg2(uint uMsg, IntPtr wParam, IntPtr lParam, out IntPtr plResult);
         }
 
         [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("000214E6-0000-0000-C000-000000000046")]
@@ -92,49 +92,37 @@ namespace TrayFolder.Helpers
             public IntPtr hIcon;
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINT
-        {
-            public int X;
-            public int Y;
-        }
+        [DllImport("user32.dll")]
+        private static extern IntPtr CreatePopupMenu();
 
-        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
-        public static extern int SHGetDesktopFolder(out IShellFolder ppshf);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyMenu(IntPtr hMenu);
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        public static extern IntPtr CreatePopupMenu();
+        [DllImport("user32.dll")]
+        private static extern int TrackPopupMenuEx(IntPtr hmenu, uint fuFlags, int x, int y, IntPtr hwnd, IntPtr lptpm);
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        public static extern bool DestroyMenu(IntPtr hMenu);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        public static extern int TrackPopupMenuEx(IntPtr hmenu, uint fuFlags, int x, int y, IntPtr hwnd, IntPtr lptpm);
-
-        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
-        public static extern void SHFree(IntPtr pv);
-
-        [DllImport("shell32.dll")]
-        public static extern IntPtr ILFindLastID(IntPtr pidl);
-
-        [DllImport("shell32.dll")]
-        public static extern bool ILRemoveLastID(IntPtr pidl);
-
-        [DllImport("shell32.dll")]
-        public static extern void ILFree(IntPtr pidl);
+        [DllImport("ole32.dll")]
+        private static extern void CoTaskMemFree(IntPtr pv);
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-        public static extern int SHParseDisplayName([MarshalAs(UnmanagedType.LPWStr)] string pszName, IntPtr pbc, out IntPtr ppidl, uint sfgaoIn, out uint psfgaoOut);
+        private static extern int SHParseDisplayName([MarshalAs(UnmanagedType.LPWStr)] string pszName, IntPtr pbc, out IntPtr ppidl, uint sfgaoIn, out uint psfgaoOut);
 
-        public const uint CMF_NORMAL = 0x00000000;
-        public const uint CMF_EXPLORE = 0x00000004;
+        [DllImport("shell32.dll", ExactSpelling = true, PreserveSig = true)]
+        private static extern int SHBindToParent(IntPtr pidl, [In] ref Guid riid, out IShellFolder ppv, out IntPtr ppidlLast);
 
-        public const uint TPM_ReturnCmd = 0x0100;
-        public const uint TPM_LeftButton = 0x0000;
-        public const uint TPM_RightButton = 0x0002;
+        private const uint CMF_NORMAL = 0x00000000;
 
-        public static Guid IID_IContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
-        public static Guid IID_IShellFolder = new Guid("000214E6-0000-0000-C000-000000000046");
+        private const uint TPM_RETURNCMD = 0x0100;
+        private const uint TPM_RIGHTBUTTON = 0x0002;
+
+        private const int WM_DRAWITEM = 0x002B;
+        private const int WM_MEASUREITEM = 0x002C;
+        private const int WM_INITMENUPOPUP = 0x0117;
+        private const int WM_MENUCHAR = 0x0120;
+
+        private static readonly Guid IID_IContextMenu = new Guid("000214E4-0000-0000-C000-000000000046");
+        private static readonly Guid IID_IShellFolder = new Guid("000214E6-0000-0000-C000-000000000046");
 
         #endregion
 
@@ -144,68 +132,55 @@ namespace TrayFolder.Helpers
 
             IntPtr pidlFull = IntPtr.Zero;
             IntPtr pidlChild = IntPtr.Zero;
-            IShellFolder desktopFolder = null;
-            IShellFolder parentFolder = null;
+            IShellFolder? parentFolder = null;
+            IContextMenu? contextMenu = null;
             IntPtr hMenu = IntPtr.Zero;
             IntPtr iContextMenuPtr = IntPtr.Zero;
+            HwndSource? hwndSource = null;
+            HwndSourceHook? menuMessageHook = null;
 
             try
             {
-                // 1. Get Desktop Folder
-                if (SHGetDesktopFolder(out desktopFolder) != 0) return;
-
-                // 2. Parse Path to PIDL
                 uint attributes = 0;
-                if (SHParseDisplayName(path, IntPtr.Zero, out pidlFull, 0, out attributes) != 0) return;
+                if (Failed(SHParseDisplayName(path, IntPtr.Zero, out pidlFull, 0, out attributes))) return;
+                Guid shellFolderId = IID_IShellFolder;
+                if (Failed(SHBindToParent(pidlFull, ref shellFolderId, out parentFolder, out pidlChild))) return;
 
-                // 3. Split PIDL into Parent and Child
-                // We need the parent IShellFolder and the child PIDL (relative to parent)
+                IntPtr hwnd = new WindowInteropHelper(ownerWindow).EnsureHandle();
+                IntPtr[] apidl = new IntPtr[] { pidlChild };
+                Guid contextMenuId = IID_IContextMenu;
+                if (Failed(parentFolder.GetUIObjectOf(IntPtr.Zero, 1, apidl, ref contextMenuId, IntPtr.Zero, out iContextMenuPtr))) return;
 
-                // Get the last ID (child) and remove it from full to get parent PIDL?
-                // Actually SHParseDisplayName returns an absolute PIDL (relative to Desktop).
-                // Easier way: Bind to parent folder. But we need to separate the path or the PIDL.
+                contextMenu = (IContextMenu)Marshal.GetObjectForIUnknown(iContextMenuPtr);
 
-                // Alternative: Use SHBindToParent (Standard API)
-                // Let's implement SHBindToParent P/Invoke as it's cleaner.
-                // But since I didn't define it, I'll do it manually:
+                hMenu = CreatePopupMenu();
+                if (hMenu == IntPtr.Zero) return;
 
-                // Manually getting parent IShellFolder is complex with raw PIDLs without SHBindToParent.
-                // Let's use the file path string manipulation which is safer for this simple case? 
-                // No, PIDLs are better for special folders. But let's assume standard file system paths here.
+                const uint commandIdFirst = 1;
+                if (Failed(contextMenu.QueryContextMenu(hMenu, 0, commandIdFirst, 0x7FFF, CMF_NORMAL))) return;
 
-                // Let's use SHBindToParent. I'll add the P/Invoke dynamically or just add it below.
-
-                IntPtr pidlParent;
-                if (SHBindToParent(pidlFull, ref IID_IShellFolder, out parentFolder, out pidlChild) != 0)
+                // Owner-drawn and dynamic shell extensions rely on these messages. Without
+                // forwarding them, some handlers fail inside native code before .NET can catch it.
+                IContextMenu3? contextMenu3 = contextMenu as IContextMenu3;
+                IContextMenu2? contextMenu2 = contextMenu3 ?? contextMenu as IContextMenu2;
+                if (contextMenu2 != null)
                 {
-                    // Fallback to Desktop if it's a root or something
-                    return;
+                    menuMessageHook = CreateMenuMessageHook(contextMenu2, contextMenu3);
+                    hwndSource = HwndSource.FromHwnd(hwnd);
+                    hwndSource?.AddHook(menuMessageHook);
                 }
 
-                // 4. Get IContextMenu
-                IntPtr[] apidl = new IntPtr[] { pidlChild };
-                if (parentFolder.GetUIObjectOf(IntPtr.Zero, 1, apidl, ref IID_IContextMenu, IntPtr.Zero, out iContextMenuPtr) != 0) return;
+                int command = TrackPopupMenuEx(hMenu, TPM_RETURNCMD | TPM_RIGHTBUTTON, x, y, hwnd, IntPtr.Zero);
 
-                var contextMenu = (IContextMenu)Marshal.GetObjectForIUnknown(iContextMenuPtr);
-
-                // 5. Create Menu
-                hMenu = CreatePopupMenu();
-
-                // 6. Query Context Menu
-                contextMenu.QueryContextMenu(hMenu, 0, 1, 0x7FFF, CMF_NORMAL);
-
-                // 7. Track Menu
-                IntPtr hwnd = (new WindowInteropHelper(ownerWindow)).Handle;
-                int command = TrackPopupMenuEx(hMenu, TPM_ReturnCmd | TPM_LeftButton, x, y, hwnd, IntPtr.Zero);
-
-                // 8. Invoke Command
                 if (command > 0)
                 {
-                    CMINVOKECOMMANDINFO invoke = new CMINVOKECOMMANDINFO();
-                    invoke.cbSize = Marshal.SizeOf(invoke);
-                    invoke.hwnd = hwnd;
-                    invoke.lpVerb = (IntPtr)(command - 1);
-                    invoke.nShow = 1; // SW_SHOWNORMAL
+                    CMINVOKECOMMANDINFO invoke = new CMINVOKECOMMANDINFO
+                    {
+                        cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
+                        hwnd = hwnd,
+                        lpVerb = (IntPtr)(command - commandIdFirst),
+                        nShow = 1 // SW_SHOWNORMAL
+                    };
 
                     contextMenu.InvokeCommand(ref invoke);
                 }
@@ -216,19 +191,43 @@ namespace TrayFolder.Helpers
             }
             finally
             {
+                if (menuMessageHook != null) hwndSource?.RemoveHook(menuMessageHook);
                 if (hMenu != IntPtr.Zero) DestroyMenu(hMenu);
+                if (contextMenu != null) Marshal.ReleaseComObject(contextMenu);
                 if (iContextMenuPtr != IntPtr.Zero) Marshal.Release(iContextMenuPtr);
                 if (parentFolder != null) Marshal.ReleaseComObject(parentFolder);
-                if (desktopFolder != null) Marshal.ReleaseComObject(desktopFolder);
-                if (pidlFull != IntPtr.Zero) ILFree(pidlFull);
-                // pidlChild is a pointer into pidlFull (or separate depending on SHBindToParent impl), 
-                // but usually SHBindToParent returns a pointer to the last ID in the PIDL list, not a new allocation, so valid as long as pidlFull is valid?
-                // Actually SHBindToParent DOES NOT allocate a new PIDL for child, it points to the last ID in the absolute PIDL.
-                // So we only free pidlFull.
+                if (pidlFull != IntPtr.Zero) CoTaskMemFree(pidlFull);
             }
         }
 
-        [DllImport("shell32.dll", ExactSpelling = true, PreserveSig = true)]
-        public static extern int SHBindToParent(IntPtr pidl, [In] ref Guid riid, out IShellFolder ppv, out IntPtr ppidlLast);
+        private static HwndSourceHook CreateMenuMessageHook(IContextMenu2 contextMenu2, IContextMenu3? contextMenu3)
+        {
+            return (IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled) =>
+            {
+                if (message == WM_MENUCHAR && contextMenu3 != null)
+                {
+                    int result = contextMenu3.HandleMenuMsg2((uint)message, wParam, lParam, out IntPtr menuResult);
+                    handled = !Failed(result);
+                    return menuResult;
+                }
+
+                if (message != WM_DRAWITEM && message != WM_MEASUREITEM && message != WM_INITMENUPOPUP)
+                {
+                    return IntPtr.Zero;
+                }
+
+                if (contextMenu3 != null)
+                {
+                    int result = contextMenu3.HandleMenuMsg2((uint)message, wParam, lParam, out IntPtr menuResult);
+                    handled = !Failed(result);
+                    return menuResult;
+                }
+
+                handled = !Failed(contextMenu2.HandleMenuMsg((uint)message, wParam, lParam));
+                return IntPtr.Zero;
+            };
+        }
+
+        private static bool Failed(int hResult) => hResult < 0;
     }
 }

@@ -1,7 +1,9 @@
 bin/
 obj/
+dist/
 .vs/
 *.user
 *.suo
 *.pdb
 *.cache
+package.bat

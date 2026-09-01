@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AssemblyName>TrayFolder.ShellHost</AssemblyName>
+    <RootNamespace>TrayFolder.ShellHost</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Helpers\ShellContextMenuHelper.cs" Link="NativeContextMenuHelper.cs" />
+  </ItemGroup>
+
+</Project>

@@ -135,14 +135,18 @@ namespace TrayFolder.Models
                 // But we need a valid window handle to receive messages.
                 // We can use the dummy MainWindow we created.
 
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () =>
                 {
                     var mainWindow = System.Windows.Application.Current.MainWindow as MainWindow;
                     if (mainWindow != null) mainWindow.SetStaysOpen(true);
 
                     try
                     {
-                        NativeContextMenuHelper.ShowContextMenu(Path, (int)point.X, (int)point.Y, mainWindow);
+                        await ShellContextMenuHost.ShowAsync(Path, (int)point.X, (int)point.Y);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error showing context menu: {ex.Message}");
                     }
                     finally
                     {
@@ -151,7 +155,7 @@ namespace TrayFolder.Models
 
                         // Delay resetting StaysOpen to allow any pending focus/activation messages to settle
                         // while StaysOpen is still true.
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                        _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                         {
                             if (mainWindow != null) mainWindow.SetStaysOpen(false);
                         }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
